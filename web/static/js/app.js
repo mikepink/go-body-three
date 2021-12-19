@@ -21,12 +21,16 @@ function initApp() {
         scene,
     } = initThreeScene();
 
-    const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshBasicMaterial({ color: 0xddffaa });
+    const directionalLight = new THREE.DirectionalLight(0x404040, 0.8);
+    directionalLight.position.set(20, 10, 0);
+    scene.add(directionalLight);
+
+    const geometry = new THREE.SphereGeometry(2);
+    const material = new THREE.MeshLambertMaterial({ color: 0x99ee22 });
     const cube = new THREE.Mesh(geometry, material);
     scene.add(cube);
 
-    camera.position.z = 5;
+    camera.position.z = 20;
     function animate() {
         requestAnimationFrame(animate);
 
