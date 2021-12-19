@@ -8,6 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 )
 
 const STATIC_ROOT = "/web/static"
@@ -64,11 +67,43 @@ func MainWebServer(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func getWsServer() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Handling new WebSocket request. Upgrading request...")
+		conn, _, _, err := ws.UpgradeHTTP(r, w)
+		if err != nil {
+			panic(err)
+		}
+		go func() {
+			fmt.Println("Awaiting client data...")
+			defer conn.Close()
+
+			for {
+				msg, op, err := wsutil.ReadClientData(conn)
+				if err != nil {
+					log.Println("wsutil.ReadClientData: ", err)
+					return
+				}
+				fmt.Println("Received data from client...")
+				appendage := []byte(" hee hoo")
+				responseData := append(msg[:], appendage...)
+				err = wsutil.WriteServerMessage(conn, op, responseData)
+				if err != nil {
+					log.Println("wsutil.WriteServerMessage: ", err)
+					return
+				}
+				fmt.Println("Responsed to client...")
+			}
+		}()
+	}
+}
+
 func init_server() {
 	fmt.Println("Generating static resources map...")
 	makeStaticResoucesMap(staticResoucesMap)
 	fmt.Println("Initializing HTTP server...")
 	http.HandleFunc("/", MainWebServer)
+	http.HandleFunc("/sim", getWsServer())
 	err := http.ListenAndServeTLS(":8822", "server.crt", "server.key", nil)
 	if err != nil {
 		log.Fatal("ListenAndServerTLS: ", err)

@@ -4,6 +4,9 @@ go 1.17
 
 require (
 	github.com/BurntSushi/toml v0.4.1 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
+	github.com/gobwas/ws v1.1.0 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	golang.org/x/mod v0.5.1 // indirect

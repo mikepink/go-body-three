@@ -14,6 +14,18 @@ function initThreeScene() {
     }
 }
 
+function initDataLink() {
+    const socket = new WebSocket("wss://localhost:8822/sim");
+    socket.addEventListener('message', (event) => {
+        console.log(`Server response: "${event.data}"`);
+        socket.close();
+    });
+    socket.addEventListener('open', () => {
+        console.log('Websocket connected');
+        socket.send("yodel");
+    });
+}
+
 function initApp() {
     const {
         camera,
@@ -40,6 +52,7 @@ function initApp() {
         renderer.render(scene, camera);
     };
     animate();
+    initDataLink();
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
