@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
@@ -74,27 +76,53 @@ func getWsServer() func(http.ResponseWriter, *http.Request) {
 		if err != nil {
 			panic(err)
 		}
-		go func() {
-			fmt.Println("Awaiting client data...")
-			defer conn.Close()
 
+		var wg sync.WaitGroup
+		positionChan := make(chan *Frame, 60)
+		endSimulationChan := make(chan bool, 1)
+		wg.Add(1)
+		go Simulator(wg, positionChan, endSimulationChan)
+		wg.Add(1)
+		go func(positionChan <-chan *Frame) {
+			defer wg.Done()
+			defer conn.Close()
+			fmt.Println("Initializing simulation engine")
+
+			fmt.Println("Awaiting client data...")
 			for {
 				msg, op, err := wsutil.ReadClientData(conn)
 				if err != nil {
 					log.Println("wsutil.ReadClientData: ", err)
+					os.Exit(0)
 					return
 				}
-				fmt.Println("Received data from client...")
-				appendage := []byte(" hee hoo")
-				responseData := append(msg[:], appendage...)
-				err = wsutil.WriteServerMessage(conn, op, responseData)
+				fmt.Printf("Received data[%d] from client: %s\n", op, msg)
+				bufSize := 60
+				positionBuffer := make([]*Frame, bufSize)
+				for i := 0; i < bufSize; i++ {
+					select {
+					case positionChanMsg := <-positionChan:
+						positionBuffer[i] = positionChanMsg
+					case endSimulationChanMsg := <-endSimulationChan:
+						fmt.Printf("End Simulation Message: %t\n", endSimulationChanMsg)
+						return
+					}
+				}
+				jsonBytes, jsonerr := json.Marshal(positionBuffer)
+				if jsonerr != nil {
+					log.Println("json.Marshall: ", jsonerr)
+				}
+				responseBuffer := jsonBytes
+				err = wsutil.WriteServerMessage(conn, ws.OpText, responseBuffer)
 				if err != nil {
 					log.Println("wsutil.WriteServerMessage: ", err)
 					return
 				}
 				fmt.Println("Responsed to client...")
 			}
-		}()
+		}(positionChan)
+
+		wg.Wait()
 	}
 }
 
@@ -102,12 +130,20 @@ func init_server() {
 	fmt.Println("Generating static resources map...")
 	makeStaticResoucesMap(staticResoucesMap)
 	fmt.Println("Initializing HTTP server...")
+	srv := &http.Server{Addr: ":8822"}
 	http.HandleFunc("/", MainWebServer)
 	http.HandleFunc("/sim", getWsServer())
-	err := http.ListenAndServeTLS(":8822", "server.crt", "server.key", nil)
-	if err != nil {
-		log.Fatal("ListenAndServerTLS: ", err)
-	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		err := srv.ListenAndServeTLS("server.crt", "server.key")
+		if err != nil {
+			log.Fatal("ListenAndServerTLS: ", err)
+		}
+		wg.Done()
+	}()
+	wg.Wait()
 }
 
 func main() {
