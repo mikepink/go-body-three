@@ -35,21 +35,6 @@ func (n *NBodySimulation) AddPoint(p *Point) []*Point {
 	return n.Points
 }
 
-func NewNBodySimulation() *NBodySimulation {
-	var newSim NBodySimulation = NBodySimulation{}
-	newSim.Points = make([]*Point, 1)
-	newSim.AddPoint(&Point{
-		Acceleration: &Vector3{0, 0, 0},
-		Mass:         1,
-		Position:     &Vector3{0, 0, 0},
-		Velocity:     &Vector3{1, 0, 0},
-	})
-
-	fmt.Println(newSim)
-	fmt.Println(newSim.Points[0].Velocity.X)
-	return &newSim
-}
-
 const STEP_SIZE = 1.0 / 60.0
 const G = 0.0000000000667
 
@@ -69,7 +54,7 @@ func Simulator(wg sync.WaitGroup, positionChan chan<- *Frame, endSimulationChan 
 		Acceleration: &Vector3{0, 0, 0},
 		Mass:         2,
 		Position:     &Vector3{5, 0, 0},
-		Velocity:     &Vector3{0, -0.07, 0},
+		Velocity:     &Vector3{0, -0.03, 0},
 	})
 	n.AddPoint(&Point{
 		Acceleration: &Vector3{0, 0, 0},
@@ -77,9 +62,21 @@ func Simulator(wg sync.WaitGroup, positionChan chan<- *Frame, endSimulationChan 
 		Position:     &Vector3{-12, 0, 0},
 		Velocity:     &Vector3{0, 0.015, 0},
 	})
+	n.AddPoint(&Point{
+		Acceleration: &Vector3{0, 0, 0},
+		Mass:         1000000,
+		Position:     &Vector3{10, 0, -3},
+		Velocity:     &Vector3{0, -0.01, -0.01},
+	})
+	n.AddPoint(&Point{
+		Acceleration: &Vector3{0, 0, 0},
+		Mass:         10000000,
+		Position:     &Vector3{20, 20, -12},
+		Velocity:     &Vector3{0, 0, 0.01},
+	})
 	fmt.Println("Created new simulator struct")
 	dT := 1.0
-	for i := 0; i < 15000; i++ {
+	for i := 0; i < 1500000; i++ {
 		numPoints := len(n.Points)
 		idBuffer := make([]uint16, numPoints)
 		positionsBuffer := make([]float64, numPoints*3)
@@ -129,11 +126,4 @@ func Simulator(wg sync.WaitGroup, positionChan chan<- *Frame, endSimulationChan 
 		}
 	}
 	endSimulationChan <- true
-	// point.Position.X += point.Velocity.X
-	// positionChan <- &Frame{
-	// 	Ids:       []uint16{point.Id},
-	// 	Positions: []float64{point.Position.X, point.Position.Y, point.Position.Z},
-	// }
-	// fmt.Printf("[%d] Added frame to channel\n", i)
-	// }
 }

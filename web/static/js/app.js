@@ -7,6 +7,7 @@ function initThreeScene() {
     const renderer = new THREE.WebGLRenderer({
         antialias: true,
     });
+    renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.setSize(wInnerWidth, wInnerHeight);
     document.body.appendChild(renderer.domElement);
     return {
@@ -22,7 +23,7 @@ function makeNode(meshOptions) {
     return new THREE.Mesh(geometry, material);
 }
 
-const NODE_COLORS = [0x99ee22, 0xee9922, 0x9922ee];
+const NODE_COLORS = [0x99ee22, 0xee9922, 0x9922ee, 0x22ee99, 0x2299ee];
 function animate(state) {
     if (!state.running) {
         return;
@@ -36,12 +37,21 @@ function animate(state) {
         frameQueue,
         renderer,
         scene,
+        traceLines,
+        traceMeshes,
     } = state;
 
     const frame = frameQueue.shift();
     if (!frame) {
         state.running = false;
         return;
+    }
+
+    while (traceMeshes.length) {
+        const traceMesh = traceMeshes.pop();
+        traceMesh.geometry.dispose();
+        traceMesh.material.dispose();
+        scene.remove(traceMesh);
     }
 
     const frameNodeIds = new Set();
@@ -51,6 +61,7 @@ function animate(state) {
         // New node, add to scene.
         if (!nodes.has(nodeId)) {
             nodes.set(nodeId, makeNode({ color: NODE_COLORS[nodes.size % NODE_COLORS.length] }));
+            traceLines.set(nodeId, []);
             scene.add(nodes.get(nodeId));
         }
 
@@ -59,7 +70,26 @@ function animate(state) {
             frame.positions[i],
             frame.positions[i + 1],
             frame.positions[i + 2],
-        )
+        );
+
+        if (traceLines.get(nodeId).length >= 120) {
+            traceLines.get(nodeId).shift();
+        }
+        traceLines.get(nodeId).push(new THREE.Vector3(
+            frame.positions[i],
+            frame.positions[i + 1],
+            frame.positions[i + 2],
+        ));
+
+        const lineMaterial = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            opacity: 0.4,
+            transparent: true,
+        });
+        const geometry = new THREE.BufferGeometry().setFromPoints(traceLines.get(nodeId));
+        const newTraceMesh = new THREE.Line(geometry, lineMaterial);
+        traceMeshes.push(newTraceMesh);
+        scene.add(newTraceMesh);
 
         i += 3;
     }
@@ -67,6 +97,9 @@ function animate(state) {
     // Remove any nodes no longer being rendered.
     nodes.forEach((node, key) => {
         if (!frameNodeIds.has(key)) {
+            traceLines.delete(key);
+            node.geometry.dispose();
+            node.material.dispose();
             scene.remove(node);
             nodes.delete(key);
         }
@@ -116,7 +149,7 @@ function initDataLink(animationState) {
             if (socket.readyState === socket.OPEN) {
                 socket.close()
             }
-        }, 22000);
+        }, 250000);
     });
 }
 
@@ -134,7 +167,11 @@ function initApp() {
         renderer,
         running: false,
         scene,
+        traceLines: new Map(),
+        traceMeshes: [],
     };
+
+    scene.fog = new THREE.Fog(0xffffff, 10, 1000);
 
     const directionalLight = new THREE.DirectionalLight(0x404040, 0.8);
     directionalLight.position.set(5, 2, 0);
@@ -148,7 +185,9 @@ function initApp() {
     directionalLight3.position.set(0, 0, 20);
     scene.add(directionalLight3);
 
-    camera.position.z = 50;
+    camera.position.set(0, -20, 50);
+    camera.lookAt(0, 0, 0);
+    window.camera = camera;
 
     initDataLink(animationState);
 }
