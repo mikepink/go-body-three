@@ -17,8 +17,61 @@ function initThreeScene() {
     }
 }
 
+const C_MOVE_SPEED = 0.4;
+function initKeyHandlers(animationState) {
+    const {
+        activeKeys,
+        camera,
+    } = animationState;
+
+    function respondToKeys() {
+        if (activeKeys.size === 0) {
+            return;
+        }
+        requestAnimationFrame(respondToKeys);
+
+        if (activeKeys.has('KeyD')) {
+            camera.position.x += C_MOVE_SPEED;
+        }
+
+        if (activeKeys.has('KeyA')) {
+            camera.position.x -= C_MOVE_SPEED;
+        }
+
+        if (activeKeys.has('ShiftLeft')) {
+            if (activeKeys.has('KeyW')) {
+                camera.position.z -= C_MOVE_SPEED;
+            }
+
+            if (activeKeys.has('KeyS')) {
+                camera.position.z += C_MOVE_SPEED;
+            }
+        } else {
+            if (activeKeys.has('KeyW')) {
+                camera.position.y += C_MOVE_SPEED;
+            }
+    
+            if (activeKeys.has('KeyS')) {
+                camera.position.y -= C_MOVE_SPEED;
+            }
+        }
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (activeKeys.size === 0) {
+            requestAnimationFrame(respondToKeys);
+        }
+        activeKeys.add(e.code);
+    });
+
+    document.addEventListener('keyup', (e) => {
+        activeKeys.delete(e.code);
+    });
+
+}
+
 function makeNode(meshOptions) {
-    const geometry = new THREE.SphereGeometry(2);
+    const geometry = new THREE.SphereGeometry(1);
     const material = new THREE.MeshLambertMaterial(meshOptions);
     return new THREE.Mesh(geometry, material);
 }
@@ -161,6 +214,7 @@ function initApp() {
     } = initThreeScene();
 
     const animationState = {
+        activeKeys: new Set(),
         camera,
         frameQueue: [],
         nodes: new Map(),
@@ -187,9 +241,9 @@ function initApp() {
 
     camera.position.set(0, -20, 50);
     camera.lookAt(0, 0, 0);
-    window.camera = camera;
 
     initDataLink(animationState);
+    initKeyHandlers(animationState);
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
