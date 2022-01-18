@@ -67,7 +67,29 @@ function initKeyHandlers(animationState) {
     document.addEventListener('keyup', (e) => {
         activeKeys.delete(e.code);
     });
+}
 
+function initClickHandlers(animationState) {
+    const {
+        camera,
+        nodes,
+        renderer,
+    } = animationState;
+
+    const cursorVector = new THREE.Vector2();
+    const screenSize = new THREE.Vector2();
+    const raycaster = new THREE.Raycaster();
+
+    document.addEventListener('mousedown', (e) => {
+        renderer.getSize(screenSize);
+        cursorVector.x = (e.clientX / screenSize.x) * 2 - 1;
+        cursorVector.y = -(e.clientY / screenSize.y) * 2 + 1;
+        raycaster.setFromCamera(cursorVector, camera);
+        const intersections = raycaster.intersectObjects(Array.from(nodes.values()));
+        if (intersections.length) {
+            camera.lookAt(intersections[0].point);
+        }
+    });
 }
 
 function makeNode(meshOptions) {
@@ -244,6 +266,7 @@ function initApp() {
 
     initDataLink(animationState);
     initKeyHandlers(animationState);
+    initClickHandlers(animationState);
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
